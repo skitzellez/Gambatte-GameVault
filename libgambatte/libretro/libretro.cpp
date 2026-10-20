@@ -54,6 +54,37 @@ static retro_environment_t environ_cb;
 static gambatte::video_pixel_t* video_buf;
 static gambatte::GB gb;
 
+/* Game Vault: the link cable through RetroArch's online rooms (packet_serial.h). On whenever a room starts. */
+#include "packet_serial.h"
+static PacketSerial gb_packet_serial;
+static void RETRO_CALLCONV link_start(uint16_t client_id, retro_netpacket_send_t send_fn,
+                                      retro_netpacket_poll_receive_t poll_fn)
+{
+   gb_packet_serial.start(client_id, send_fn, poll_fn);
+   gb.setSerialIO(&gb_packet_serial);
+}
+static void RETRO_CALLCONV link_receive(const void* buf, size_t len, uint16_t client_id)
+{
+   gb_packet_serial.receive(buf, len, client_id);
+}
+static void RETRO_CALLCONV link_stop(void)
+{
+   gb_packet_serial.stop();
+   gb.setSerialIO(NULL);
+}
+static bool RETRO_CALLCONV link_connected(uint16_t client_id)
+{
+   return gb_packet_serial.connect(client_id);
+}
+static void RETRO_CALLCONV link_disconnected(uint16_t client_id)
+{
+   gb_packet_serial.disconnect(client_id);
+}
+static const struct retro_netpacket_callback link_iface = {
+   link_start, link_receive, link_stop, NULL, link_connected, link_disconnected,
+   "gamevault-link-1" /* both ends must speak the same packets */
+};
+
 static bool libretro_supports_option_categories = false;
 static bool libretro_supports_bitmasks          = false;
 static bool libretro_supports_set_variable      = false;
@@ -1652,7 +1683,7 @@ static std::string gb_NetworkClientAddr;
 
 void retro_get_system_info(struct retro_system_info *info)
 {
-   info->library_name = "Gambatte";
+   info->library_name = "Gambatte Link";
 #ifndef GIT_VERSION
 #define GIT_VERSION ""
 #endif
@@ -1792,6 +1823,8 @@ void retro_set_environment(retro_environment_t cb)
    struct retro_vfs_interface_info vfs_iface_info;
    bool option_categories = false;
    environ_cb = cb;
+
+   environ_cb(RETRO_ENVIRONMENT_SET_NETPACKET_INTERFACE, (void*)&link_iface);
 
    /* Set core options
     * An annoyance: retro_set_environment() can be called
@@ -2487,7 +2520,7 @@ static void check_variables(bool startup)
          break;
       default:
          gb_net_serial.stop();
-         gb.setSerialIO(NULL);
+         gb.setSerialIO(gb_packet_serial.active() ? &gb_packet_serial : NULL);
          break;
    }
 

@@ -46,7 +46,8 @@ SOURCES_CXX := \
 	$(CORE_DIR)/video/next_m0_time.cpp \
 	$(CORE_DIR)/video/ppu.cpp \
 	$(CORE_DIR)/video/sprite_mapper.cpp \
-	$(CORE_DIR)/../libretro/libretro.cpp
+	$(CORE_DIR)/../libretro/libretro.cpp \
+	$(CORE_DIR)/../libretro/packet_serial.cpp
 
 ifeq ($(HAVE_NETWORK),1)
 	SOURCES_CXX += \
