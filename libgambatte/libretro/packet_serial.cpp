@@ -57,6 +57,8 @@ void PacketSerial::receive(const void* buf, size_t len, uint16_t client_id)
    if (len < 3 || (host_ && (int)client_id != peer_))
       return;
    Byte b = { p[0], p[1], p[2] };
+   if (queue_.size() >= 1024)   /* a cable never has this many waiting: a flood from the other end, not kept */
+      queue_.pop_front();
    queue_.push_back(b);
    static int logged = 0;
    if (logged < 6 && ++logged)
